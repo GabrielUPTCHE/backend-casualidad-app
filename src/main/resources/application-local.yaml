@@ -1,9 +1,9 @@
 # application-local.yml
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/gestion_db
+    url: jdbc:postgresql://casualidad-dev-db.csjmmc6gm1oa.us-east-1.rds.amazonaws.com/casualidad_dev_db
     username: postgres
-    password: postgres
+    password: casualidad-db-2026
     driver-class-name: org.postgresql.Driver
 
   jpa:
