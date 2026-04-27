@@ -12,7 +12,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.casualidad.casualidad_backend.auth.repository.UsuarioRepository;
-import com.casualidad.casualidad_backend.auth.security.AuthService;
 
 import lombok.RequiredArgsConstructor;
 
