@@ -3,6 +3,7 @@ package com.casualidad.casualidad_backend.pedidos.repository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -10,9 +11,11 @@ import com.casualidad.casualidad_backend.common.domain.enums.EstadoPedido;
 import com.casualidad.casualidad_backend.pedidos.domain.model.Pedido;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
-public interface PedidoRepository extends JpaRepository<Pedido, Long> {
+public interface PedidoRepository extends JpaRepository<Pedido, Long>, JpaSpecificationExecutor<Pedido>{
 
     // (Único) Factura completa, no se pagina porque es un solo ID
     @Query("SELECT p FROM Pedido p " +
@@ -30,4 +33,11 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     long countByClienteIdCliente(Long idCliente);
 
     long countByCreadoEnBetween(LocalDateTime inicio, LocalDateTime fin);
+
+    @Query("SELECT p FROM Pedido p " +
+           "WHERE p.estadoPedido IN :estados " +
+           "AND p.saldoPendiente > 0 " +
+           "ORDER BY p.fechaEntrega ASC")
+    List<Pedido> buscarSaldosPendientesPorEstados(Collection<EstadoPedido> estados);
+
 }

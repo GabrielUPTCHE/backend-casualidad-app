@@ -5,6 +5,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.casualidad.casualidad_backend.pedidos.domain.exception.PedidoNoEditableException;
+import com.casualidad.casualidad_backend.pedidos.domain.exception.PedidoNotFoundException;
 import com.casualidad.casualidad_backend.pedidos.domain.exception.StockInsuficienteException;
 
 import java.time.LocalDateTime;
@@ -29,5 +31,25 @@ public class PedidoExceptionHandler {
             "estado", "ERROR_VALIDACION",
             "mensaje", ex.getMessage()
         ));
+    }
+
+    @ExceptionHandler(PedidoNoEditableException.class)
+    public ResponseEntity<?> handleNoEditable(PedidoNoEditableException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(Map.of(
+                "timestamp", LocalDateTime.now(),
+                "estado", "PEDIDO_NO_EDITABLE",
+                "mensaje", ex.getMessage()
+            ));
+    }
+
+    @ExceptionHandler(PedidoNotFoundException.class)
+    public ResponseEntity<?> handleNotFound(PedidoNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(Map.of(
+                "timestamp", LocalDateTime.now(),
+                "estado", "PEDIDO_NO_ENCONTRADO",
+                "mensaje", ex.getMessage()
+            ));
     }
 }
