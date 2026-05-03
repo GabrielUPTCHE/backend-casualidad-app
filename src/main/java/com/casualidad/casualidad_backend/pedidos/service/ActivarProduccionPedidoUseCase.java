@@ -104,6 +104,12 @@ private Map<Long, BigDecimal> calcularInsumosRequeridos(Pedido pedido) {
                         BigDecimal::add
                 ));
     }
+    /**
+     * Busca y trae del repositorio los productos (insumos) involucrados en la producción del pedido,
+     * mapeándolos por su ID para acceso rápido.
+     * @param idsInsumos Conjunto de IDs productos (insumos).
+     * @return Mapa de ID de insumo a su entidad Producto correspondiente.
+     */
 
     private Map<Long, Producto> obtenerInventario(Set<Long> idsInsumos) {
         if (idsInsumos.isEmpty()) return Map.of();
