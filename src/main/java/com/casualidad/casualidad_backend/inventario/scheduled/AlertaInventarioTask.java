@@ -21,8 +21,8 @@ public class AlertaInventarioTask {
 
     // cron = "0 0 8 * * *" -> Todos los días a las 08:00:00 AM
     // Puedes cambiarlo a "0 0 8 * * MON-FRI" para que solo sea de lunes a viernes
-    /* @Scheduled(cron = "0 0 8 * * *") */
-    @Scheduled(initialDelay = 5000, fixedDelay = 600000)
+    @Scheduled(cron = "0 0 8 * * *")
+   /*  @Scheduled(initialDelay = 5000, fixedDelay = 600000) */
     @Transactional(readOnly = true)
     public void verificarYEnviarAlertasDeStock() {
         log.info("Iniciando revisión programada de stock bajo...");

@@ -27,4 +27,8 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
         @Param("inicio") LocalDateTime inicio, 
         @Param("fin") LocalDateTime fin
     );
+
+    @Query(value = "SELECT p FROM Pago p JOIN FETCH p.pedido JOIN FETCH p.pedido.cliente",
+           countQuery = "SELECT count(p) FROM Pago p")
+    Page<Pago> findAllWithPedido(Pageable pageable);
 }
