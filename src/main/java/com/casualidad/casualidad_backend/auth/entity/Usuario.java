@@ -30,7 +30,15 @@ public class Usuario implements UserDetails {
     @JoinColumn(name = "id_rol")
     private Rol rol;
 
+    @Column(length = 50)
     private String nombre;
+
+    @Column(length = 50)
+    private String apellidos;
+
+    @Column(length = 10)
+    private String telefono;
+
     @Column(unique = true)
     private String correo;
     private String contraseña;
