@@ -232,6 +232,13 @@
       <scope>test</scope>
     </dependency>
 
+    <!-- H2: base de datos embebida para pruebas -->
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <scope>test</scope>
+    </dependency>
+
 
     <!-- ═══════════════════════════════════════════
          DEV TOOLS (solo local, excluido en prod)
