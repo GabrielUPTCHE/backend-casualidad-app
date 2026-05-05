@@ -2,6 +2,7 @@ package com.casualidad.casualidad_backend.auth.security;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -54,6 +55,20 @@ public class AuthService {
                 usuario.getCorreo(),
                 usuario.getRol().getNombreRol()
         ));
+    }
+
+    public void logout(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new RuntimeException("Token JWT no proporcionado");
+        }
+
+        String accessToken = authHeader.substring(7);
+        Token token = tokenRepository.findByAccessToken(accessToken)
+                .orElseThrow(() -> new RuntimeException("Token no encontrado en la base de datos"));
+
+        token.setActivo(false);
+        tokenRepository.save(token);
+        SecurityContextHolder.clearContext();
     }
 
     public RegisterResponse register(RegisterRequest request) {
