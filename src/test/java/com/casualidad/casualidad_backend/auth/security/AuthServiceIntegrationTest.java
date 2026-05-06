@@ -36,6 +36,7 @@ import org.springframework.test.context.TestPropertySource;
 @Transactional
 public class AuthServiceIntegrationTest {
 // ./mvnw -Dtest=AuthServiceIntegrationTest test
+//./mvnw -Dtest=AuthServiceIntegrationTest test -q
     @Autowired
     private UsuarioRepository usuarioRepository;
 
