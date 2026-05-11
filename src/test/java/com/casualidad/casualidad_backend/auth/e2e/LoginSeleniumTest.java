@@ -55,9 +55,9 @@ class LoginSeleniumTest {
     @BeforeEach
     void setUp() {
         ChromeOptions options = new ChromeOptions();
-        // Para ejecutar en modo headless (sin abrir la ventana del navegador), se
-        // descomenta la siguiente línea:
-        options.addArguments("--headless=new");
+        // Para abrir la ventana del navegador),
+        // commentar la siguiente línea:
+        // options.addArguments("--headless=new");
         options.addArguments("--window-size=1440,1200");
         options.addArguments("--disable-gpu");
         options.addArguments("--no-sandbox");
@@ -160,6 +160,49 @@ class LoginSeleniumTest {
         assertTrue(mensajeValidacion.getText().contains("El teléfono debe tener 10 dígitos."));
         assertTrue(wait.until(visibilityOfElementLocated(By.xpath("//button[normalize-space()='Aceptar']")))
                 .getDomProperty("disabled") != null);
+    }
+
+        @Test
+        @DisplayName("Agregar cliente con datos válidos debe registrar exitosamente y cerrar la ventana")
+        void agregarClienteConDatosValidosDebeRegistrarExitosamenteYCerrarVentana() {
+        completarFormulario("alejandro123@yopmail.com", "123456789");
+        esperarEnvioDelLogin();
+
+        wait.until(urlContains("/home"));
+        abrirModuloClientes();
+        abrirFormularioNuevoCliente();
+
+            String telefonoUnico = generarTelefonoClienteUnico();
+            completarClienteConEventos("Juan Pérez", telefonoUnico);
+
+        WebElement registrarButton = wait.until(
+            elementToBeClickable(By.xpath("//button[normalize-space()='Registrar Cliente']")));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", registrarButton);
+        } else {
+            registrarButton.click();
+        }
+
+        WebElement cerrarVentanaButton = wait.until(
+            elementToBeClickable(By.xpath("//button[normalize-space()='Cerrar ventana']")));
+        cerrarVentanaButton.click();
+        }
+
+    @Test
+    @DisplayName("Registro de cliente sin nombre debe bloquear el envío del formulario")
+    void registroDeClienteSinNombreDebeBloquearElEnvioDelFormulario() {
+        completarFormulario("alejandro123@yopmail.com", "123456789");
+        esperarEnvioDelLogin();
+
+        wait.until(urlContains("/home"));
+        abrirModuloClientes();
+        abrirFormularioNuevoCliente();
+
+        completarClienteConEventos("", "3001234567");
+
+        WebElement registrarButton = wait.until(
+                visibilityOfElementLocated(By.xpath("//button[normalize-space()='Registrar Cliente']")));
+        assertTrue(registrarButton.getDomProperty("disabled") != null || !registrarButton.isEnabled());
     }
 
     @Test
@@ -430,5 +473,65 @@ class LoginSeleniumTest {
                             + "input.dispatchEvent(new Event('blur', { bubbles: true }));",
                     input, value);
         }
+    }
+
+    private void abrirModuloClientes() {
+        WebElement clientesLink = wait.until(
+                visibilityOfElementLocated(By.xpath("//a[contains(normalize-space(.), 'Clientes')]") ));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", clientesLink);
+        } else {
+            clientesLink.click();
+        }
+
+        wait.until(urlContains("/clientes"));
+        assertTrue(driver.getCurrentUrl().contains("/clientes"));
+    }
+
+    private void abrirFormularioNuevoCliente() {
+        WebElement botonAñadirCliente = wait.until(
+                visibilityOfElementLocated(By.xpath("//button[contains(normalize-space(.), 'Añadir Cliente') or contains(normalize-space(.), 'Comenzar registro')]")));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", botonAñadirCliente);
+        } else {
+            botonAñadirCliente.click();
+        }
+
+        wait.until(visibilityOfElementLocated(By.xpath("//h2[normalize-space()='Nuevo registro de Cliente']")));
+    }
+
+    private void completarClienteConEventos(String nombre, String telefono) {
+        WebElement nombreInput = wait.until(
+                visibilityOfElementLocated(By.cssSelector("input[formcontrolname='name']")));
+        WebElement telefonoInput = wait.until(
+                visibilityOfElementLocated(By.cssSelector("input[type='tel']")));
+
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript(
+                    "const input = arguments[0];"
+                            + "const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;"
+                            + "setter.call(input, arguments[1]);"
+                            + "input.dispatchEvent(new Event('input', { bubbles: true }));"
+                            + "input.dispatchEvent(new Event('blur', { bubbles: true }));",
+                    nombreInput, nombre);
+
+            js.executeScript(
+                    "const input = arguments[0];"
+                            + "const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;"
+                            + "setter.call(input, arguments[1]);"
+                            + "input.dispatchEvent(new Event('input', { bubbles: true }));"
+                            + "input.dispatchEvent(new Event('blur', { bubbles: true }));",
+                    telefonoInput, telefono);
+        } else {
+            nombreInput.clear();
+            nombreInput.sendKeys(nombre, Keys.TAB);
+            telefonoInput.clear();
+            telefonoInput.sendKeys(telefono, Keys.TAB);
+        }
+    }
+
+    private String generarTelefonoClienteUnico() {
+        long sufijo = Math.abs(System.currentTimeMillis() % 10_000_000L);
+        return String.format("300%07d", sufijo);
     }
 }
