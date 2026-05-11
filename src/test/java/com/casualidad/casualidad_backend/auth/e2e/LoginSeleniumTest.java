@@ -20,11 +20,12 @@ import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 class LoginSeleniumTest {
-
+    // .\mvnw.cmd -Dtest=LoginSeleniumTest test
     private static final String LOGIN_URL = System.getProperty(
         "app.baseUrl",
         "https://main.d2b2pi5dpwpebm.amplifyapp.com/login"
     );
+    private static final String APP_BASE_URL = LOGIN_URL.replace("/login", "");
 
     private WebDriver driver;
     private WebDriverWait wait;
@@ -32,6 +33,7 @@ class LoginSeleniumTest {
     @BeforeEach
     void setUp() {
         ChromeOptions options = new ChromeOptions();
+        // Para ejecutar en modo headless (sin abrir la ventana del navegador), se descomenta la siguiente línea:
         options.addArguments("--headless=new");
         options.addArguments("--window-size=1440,1200");
         options.addArguments("--disable-gpu");
@@ -62,13 +64,36 @@ class LoginSeleniumTest {
     }
 
     @Test
+    @DisplayName("Login exitoso debe mostrar dashboard, datos de sesión y accesos a módulos")
+    void loginExitosoDebeMostrarDashboardSesionYAccesos() {
+        completarFormulario("alejandro123@yopmail.com", "123456789");
+        esperarEnvioDelLogin();
+
+        wait.until(urlContains("/home"));
+        assertTrue(driver.getCurrentUrl().contains("/home"));
+
+        assertDashboardVisible();
+        assertDatosDeSesionVisibles();
+        assertAccesosAModulos();
+    }
+
+    @Test
     @DisplayName("Login fallido por correo debe mostrar error")
     void loginFallidoPorCorreoDebeMostrarError() {
-        completarFormulario("correo-inexistente@yopmail.com", "123456789");
+        completarFormulario("noexiste@yopmaiñ", "cualquiera");
         esperarEnvioDelLogin();
 
         assertTrue(driver.getCurrentUrl().contains("/login"));
         assertErrorVisible();
+    }
+
+    @Test
+    @DisplayName("Login fallido por formato de correo debe mostrar aviso de formato inválido")
+    void loginFallidoPorFormatoCorreoDebeMostrarAviso() {
+        completarFormulario("alejandro123yopmail.com", "123456789");
+
+        assertTrue(driver.getCurrentUrl().contains("/login"));
+        assertFormatoCorreoInvalidoVisible();
     }
 
     @Test
@@ -99,5 +124,49 @@ class LoginSeleniumTest {
         WebElement errorTitulo = wait.until(visibilityOfElementLocated(By.xpath("//h2[normalize-space()='Credenciales inválidas']")));
         assertEquals("Credenciales inválidas", errorTitulo.getText());
         wait.until(visibilityOfElementLocated(By.xpath("//button[normalize-space()='Intentar de nuevo']")));
+    }
+
+    private void assertDashboardVisible() {
+        wait.until(visibilityOfElementLocated(By.xpath("//h3[normalize-space()='Rendimiento Financiero']")));
+        wait.until(visibilityOfElementLocated(By.xpath("//a[.//p[normalize-space()='Por Entregar'] or normalize-space()='Por Entregar']")));
+        wait.until(visibilityOfElementLocated(By.xpath("//a[.//p[normalize-space()='Con Deuda'] or normalize-space()='Con Deuda']")));
+        wait.until(visibilityOfElementLocated(By.xpath("//h3[normalize-space()='Rendimiento Financiero']")));
+    }
+
+    private void assertDatosDeSesionVisibles() {
+        WebElement nombreUsuario = wait.until(visibilityOfElementLocated(By.xpath("//p[normalize-space()='Alejandro']")));
+        WebElement correoUsuario = wait.until(visibilityOfElementLocated(By.xpath("//p[normalize-space()='alejandro123@yopmail.com']")));
+
+        assertEquals("Alejandro", nombreUsuario.getText());
+        assertEquals("alejandro123@yopmail.com", correoUsuario.getText());
+    }
+
+    private void assertAccesosAModulos() {
+        assertModuloVisible("Inicio");
+        verificarAccesoDirectoAModulo("/clientes");
+        verificarAccesoDirectoAModulo("/inventario");
+        verificarAccesoDirectoAModulo("/pedidos");
+        verificarAccesoDirectoAModulo("/pagos");
+        verificarAccesoDirectoAModulo("/reportes");
+    }
+
+    private void assertModuloVisible(String nombreModulo) {
+        wait.until(visibilityOfElementLocated(By.xpath("//a[contains(normalize-space(.), '" + nombreModulo + "')]")));
+    }
+
+    private void verificarAccesoDirectoAModulo(String rutaEsperada) {
+        driver.get(APP_BASE_URL + rutaEsperada);
+        wait.until(urlContains(rutaEsperada));
+        assertTrue(driver.getCurrentUrl().contains(rutaEsperada));
+    }
+
+    private void assertFormatoCorreoInvalidoVisible() {
+        WebElement avisoFormato = wait.until(visibilityOfElementLocated(By.xpath(
+            "//*[normalize-space()='Por favor, ingresa un correo electrónico válido (ejemplo@dominio.com)']"
+        )));
+        assertEquals(
+            "Por favor, ingresa un correo electrónico válido (ejemplo@dominio.com)",
+            avisoFormato.getText()
+        );
     }
 }
