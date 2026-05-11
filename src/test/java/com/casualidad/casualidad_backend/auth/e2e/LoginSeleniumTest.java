@@ -7,14 +7,18 @@ import static org.openqa.selenium.support.ui.ExpectedConditions.visibilityOfElem
 import static org.openqa.selenium.support.ui.ExpectedConditions.urlContains;
 
 import java.time.Duration;
+import java.util.Map;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -29,6 +33,26 @@ class LoginSeleniumTest {
 
     private WebDriver driver;
     private WebDriverWait wait;
+    private static final String MOCK_INACTIVITY_TIMERS_SCRIPT = """
+        (() => {
+            const originalSetTimeout = window.setTimeout.bind(window);
+            const originalSetInterval = window.setInterval.bind(window);
+            const originalDateNow = Date.now.bind(Date);
+            const fastForwardMs = 6 * 60 * 1000;
+
+            window.setTimeout = (handler, delay = 0, ...args) => {
+                const normalizedDelay = typeof delay === 'number' && delay >= 1000 ? 1000 : delay;
+                return originalSetTimeout(handler, normalizedDelay, ...args);
+            };
+
+            window.setInterval = (handler, delay = 0, ...args) => {
+                const normalizedDelay = typeof delay === 'number' && delay >= 1000 ? 1000 : delay;
+                return originalSetInterval(handler, normalizedDelay, ...args);
+            };
+
+            Date.now = () => originalDateNow() + fastForwardMs;
+        })();
+        """;
 
     @BeforeEach
     void setUp() {
@@ -42,6 +66,7 @@ class LoginSeleniumTest {
 
         driver = new ChromeDriver(options);
         wait = new WebDriverWait(driver, Duration.ofSeconds(20));
+        habilitarMockDeTiempo();
         driver.get(LOGIN_URL);
     }
 
@@ -75,6 +100,80 @@ class LoginSeleniumTest {
         assertDashboardVisible();
         assertDatosDeSesionVisibles();
         assertAccesosAModulos();
+    }
+
+    @Test
+    @DisplayName("Editar perfil con nombre inválido debe mostrar validación")
+    void editarPerfilConNombreInvalidoDebeMostrarValidacion() {
+        completarFormulario("alejandro123@yopmail.com", "123456789");
+        esperarEnvioDelLogin();
+
+        wait.until(urlContains("/home"));
+        abrirPerfilDesdeMenu();
+
+        WebElement nombreInput = wait.until(visibilityOfElementLocated(By.cssSelector("input[formcontrolname='nombre']")));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript(
+                "const input = arguments[0];"
+                + "const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;"
+                + "setter.call(input, 'Juan@#');"
+                + "input.dispatchEvent(new Event('input', { bubbles: true }));"
+                + "input.dispatchEvent(new Event('blur', { bubbles: true }));",
+                nombreInput
+            );
+        } else {
+            nombreInput.clear();
+            nombreInput.sendKeys("Juan@#", Keys.TAB);
+        }
+
+        WebElement mensajeValidacion = wait.until(visibilityOfElementLocated(By.xpath("//*[contains(normalize-space(.), 'Verifica los nombres')]")));
+        assertTrue(mensajeValidacion.getText().contains("Verifica los nombres (solo letras, máx. 50)"));
+        assertTrue(wait.until(visibilityOfElementLocated(By.xpath("//button[normalize-space()='Aceptar']"))).getAttribute("disabled") != null);
+    }
+
+    @Test
+    @DisplayName("Editar perfil con teléfono inválido debe mostrar validación")
+    void editarPerfilConTelefonoInvalidoDebeMostrarValidacion() {
+        completarFormulario("alejandro123@yopmail.com", "123456789");
+        esperarEnvioDelLogin();
+
+        wait.until(urlContains("/home"));
+        abrirPerfilDesdeMenu();
+
+        WebElement telefonoInput = wait.until(visibilityOfElementLocated(By.cssSelector("input[formcontrolname='telefono']")));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript(
+                "const input = arguments[0];"
+                + "const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;"
+                + "setter.call(input, '12345678');"
+                + "input.dispatchEvent(new Event('input', { bubbles: true }));"
+                + "input.dispatchEvent(new Event('blur', { bubbles: true }));",
+                telefonoInput
+            );
+        } else {
+            telefonoInput.clear();
+            telefonoInput.sendKeys("12345678", Keys.TAB);
+        }
+
+        WebElement mensajeValidacion = wait.until(visibilityOfElementLocated(By.xpath("//p[contains(normalize-space(.), 'El teléfono debe tener 10 dígitos.')]") ));
+        assertTrue(mensajeValidacion.getText().contains("El teléfono debe tener 10 dígitos."));
+        assertTrue(wait.until(visibilityOfElementLocated(By.xpath("//button[normalize-space()='Aceptar']"))).getAttribute("disabled") != null);
+    }
+
+    @Test
+    @DisplayName("Login con inactividad debe mostrar popup y permitir cerrar sesión")
+    void loginConInactividadDebeMostrarPopupYCerrarSesion() {
+        completarFormulario("alejandro123@yopmail.com", "123456789");
+        esperarEnvioDelLogin();
+
+        wait.until(urlContains("/home"));
+        assertTrue(driver.getCurrentUrl().contains("/home"));
+
+        esperarPopupDeInactividad();
+        cerrarSesionDesdePopup();
+
+        wait.until(urlContains("/login"));
+        assertTrue(driver.getCurrentUrl().contains("/login"));
     }
 
     @Test
@@ -168,5 +267,89 @@ class LoginSeleniumTest {
             "Por favor, ingresa un correo electrónico válido (ejemplo@dominio.com)",
             avisoFormato.getText()
         );
+    }
+
+    private void abrirPerfilDesdeMenu() {
+        WebElement profileMenuButton = wait.until(visibilityOfElementLocated(By.cssSelector("button[aria-label='Menú de perfil']")));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", profileMenuButton);
+        } else {
+            profileMenuButton.click();
+        }
+
+        wait.until(visibilityOfElementLocated(By.cssSelector("button[role='menuitem']")));
+
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript(
+                "const items = Array.from(document.querySelectorAll(\"button, a\"));"
+                + "const miPerfil = items.find(item => item.textContent && item.textContent.includes('Mi Perfil'));"
+                + "if (!miPerfil) throw new Error('No se encontró la opción Mi Perfil');"
+                + "miPerfil.click();"
+            );
+        } else {
+            WebElement miPerfil = wait.until(visibilityOfElementLocated(By.xpath("//button[@role='menuitem' and contains(normalize-space(.), 'Mi Perfil')]")));
+            miPerfil.click();
+        }
+
+        wait.until(urlContains("/perfil"));
+        assertTrue(driver.getCurrentUrl().contains("/perfil"));
+    }
+
+    private void habilitarMockDeTiempo() {
+        if (driver instanceof ChromeDriver chromeDriver) {
+            chromeDriver.executeCdpCommand(
+                "Page.addScriptToEvaluateOnNewDocument",
+                Map.of("source", MOCK_INACTIVITY_TIMERS_SCRIPT)
+            );
+        }
+    }
+
+    private void esperarPopupDeInactividad() {
+        wait.until(visibilityOfElementLocated(By.xpath("//*[contains(normalize-space(.), 'inactividad') or contains(normalize-space(.), 'Inactividad') or contains(normalize-space(.), 'inactivo') or contains(normalize-space(.), 'Inactivo')]")));
+        wait.until(visibilityOfElementLocated(By.xpath("//button[normalize-space()='Cerrar sesión']")));
+    }
+
+    private void cerrarSesionDesdePopup() {
+        wait.until(elementToBeClickable(By.xpath("//button[normalize-space()='Cerrar sesión']"))).click();
+    }
+
+    @Test
+    @DisplayName("Logout manual desde perfil debe cerrar sesión y redirigir a login")
+    void logoutManualDesdePerfilDebeCerrarSesionYRedirigirALogin() {
+        completarFormulario("alejandro123@yopmail.com", "123456789");
+        esperarEnvioDelLogin();
+
+        wait.until(urlContains("/home"));
+        assertTrue(driver.getCurrentUrl().contains("/home"));
+
+        // Abrir el menú de perfil con el botón real del encabezado
+        WebElement profileMenuButton = wait.until(visibilityOfElementLocated(By.cssSelector("button[aria-label='Menú de perfil']")));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", profileMenuButton);
+        } else {
+            profileMenuButton.click();
+        }
+
+        // Seleccionar la opción de cierre de sesión visible en el menú desplegable
+        WebElement logoutMenuItem = wait.until(visibilityOfElementLocated(By.cssSelector("button[role='menuitem']")));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", logoutMenuItem);
+        } else {
+            logoutMenuItem.click();
+        }
+
+        // Esperar el diálogo de confirmación y confirmar
+        wait.until(visibilityOfElementLocated(By.xpath("//h2[normalize-space()='¿Cerrar sesión?']")));
+        WebElement confirmarCierre = wait.until(visibilityOfElementLocated(By.xpath("//button[contains(normalize-space(.), 'Sí, cerrar sesión')]")));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", confirmarCierre);
+        } else {
+            confirmarCierre.click();
+        }
+
+        // Verificar que redirige a login y que los inputs de login son visibles
+        wait.until(urlContains("/login"));
+        assertTrue(driver.getCurrentUrl().contains("/login"));
+        wait.until(visibilityOfElementLocated(By.cssSelector("input[type='email']")));
     }
 }
