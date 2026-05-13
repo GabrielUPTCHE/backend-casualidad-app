@@ -56,9 +56,8 @@ class LoginSeleniumTest {
     @BeforeEach
     void setUp() {
         ChromeOptions options = new ChromeOptions();
-        // Para abrir la ventana del navegador),
-        // commentar la siguiente línea:
-         options.addArguments("--headless=new");
+        // Para abrir la ventana del navegador), commentar la siguiente línea:        
+        options.addArguments("--headless=new");
         options.addArguments("--window-size=1440,1200");
         options.addArguments("--disable-gpu");
         options.addArguments("--no-sandbox");
@@ -586,6 +585,18 @@ class LoginSeleniumTest {
         wait.until(visibilityOfElementLocated(By.xpath("//h2[normalize-space()='Editar Cliente']")));
     }
 
+    private void abrirEditorArticuloPorTipo(String tipo) {
+        WebElement botonEditar = wait.until(visibilityOfElementLocated(By.xpath(
+                "(//table//tr[.//*[contains(normalize-space(.), '" + tipo + "')]])[1]//button[contains(normalize-space(.), 'edit')]") ));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", botonEditar);
+        } else {
+            botonEditar.click();
+        }
+
+        wait.until(visibilityOfElementLocated(By.xpath("//h2[contains(normalize-space(.),'Editar') or contains(normalize-space(.),'Artículo')]") ));
+    }
+
     private void abrirEliminarDeLaPrimeraFilaVisible() {
         WebElement botonEliminarPrimeraFila = wait.until(visibilityOfElementLocated(By.xpath(
                 "(//table//tbody//tr[.//button[contains(normalize-space(.), 'delete')]])[1]//button[contains(normalize-space(.), 'delete')]")));
@@ -597,6 +608,182 @@ class LoginSeleniumTest {
 
         // Esperar el diálogo de confirmación de eliminación
         wait.until(visibilityOfElementLocated(By.xpath("//*[contains(normalize-space(.), '¿Eliminar') or contains(normalize-space(.), 'Eliminar cliente') or contains(normalize-space(.), 'Sí, eliminar cliente')]")));
+    }
+
+    private void abrirModuloInventario() {
+        WebElement inventarioLink = wait.until(
+                visibilityOfElementLocated(By.xpath("//a[contains(normalize-space(.), 'Inventario')]") ));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", inventarioLink);
+        } else {
+            inventarioLink.click();
+        }
+
+        wait.until(urlContains("/inventario"));
+        assertTrue(driver.getCurrentUrl().contains("/inventario"));
+    }
+
+    private void abrirAgregarNuevoArticulo() {
+        WebElement botonAgregar = wait.until(visibilityOfElementLocated(By.xpath(
+                "//button[contains(normalize-space(.), 'Agregar') and contains(normalize-space(.), 'Artículo')] | //button[contains(normalize-space(.), 'Añadir') and contains(normalize-space(.), 'Artículo')] | //button[contains(normalize-space(.), 'Nuevo Artículo')]")));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", botonAgregar);
+        } else {
+            botonAgregar.click();
+        }
+
+        // Esperar a que aparezca algún campo del formulario (input/select/textarea)
+        wait.until(visibilityOfElementLocated(By.xpath("(//input|//select|//textarea)[1]")));
+    }
+
+    private void agregarInsumoYEstablecerCantidad(String nombreInsumo, String cantidad) {
+        WebElement buscador = wait.until(visibilityOfElementLocated(By.cssSelector("input[placeholder='Buscar artículo...']")));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript(
+                    "const input = arguments[0];"
+                            + "const value = arguments[1];"
+                            + "const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;"
+                            + "input.focus();"
+                            + "setter.call(input, '');"
+                            + "input.dispatchEvent(new Event('input', { bubbles: true }));"
+                            + "setter.call(input, value);"
+                            + "input.dispatchEvent(new Event('input', { bubbles: true }));"
+                            + "input.dispatchEvent(new Event('change', { bubbles: true }));",
+                    buscador, nombreInsumo);
+        } else {
+            buscador.click();
+            buscador.clear();
+            buscador.sendKeys(nombreInsumo);
+        }
+
+        WebElement opcion = wait.until(visibilityOfElementLocated(By.xpath(
+                "//div[@role='listbox' and contains(@id, 'mat-autocomplete-')]//mat-option[.//span[.//span[normalize-space()='" + nombreInsumo + "']]]"
+                        + " | //div[@role='listbox' and contains(@id, 'mat-autocomplete-')]//mat-option[.//span[normalize-space()='" + nombreInsumo + "']]"
+                        + " | //div[@role='listbox' and contains(@id, 'mat-autocomplete-')]//mat-option[contains(normalize-space(.), '" + nombreInsumo + "')]")));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", opcion);
+        } else {
+            opcion.click();
+        }
+
+        WebElement botonAñadir = wait.until(visibilityOfElementLocated(By.xpath("//button[normalize-space()='Añadir']")));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", botonAñadir);
+        } else {
+            botonAñadir.click();
+        }
+
+        if (cantidad != null) {
+            WebElement cantidadInput = "Limpiapipas".equals(nombreInsumo)
+                ? wait.until(visibilityOfElementLocated(By.xpath(
+                        "(//table//tbody//tr[.//*[contains(normalize-space(.), 'Limpiapipas')]]//input[@formcontrolname='cantidadUsada'])[1]")))
+                : wait.until(visibilityOfElementLocated(By.xpath(
+                    "(//table//tbody//tr[.//*[contains(normalize-space(.), '" + nombreInsumo
+                        + "')]]//input[@formcontrolname='cantidadUsada'])[1]")));
+            escribirEnInputConEventos(cantidadInput, cantidad);
+        }
+    }
+
+    private void escribirEnInputConEventos(WebElement input, String valor) {
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript(
+                    "const input = arguments[0];"
+                            + "const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;"
+                            + "setter.call(input, arguments[1]);"
+                            + "input.dispatchEvent(new Event('input', { bubbles: true }));"
+                            + "input.dispatchEvent(new Event('change', { bubbles: true }));"
+                            + "input.dispatchEvent(new Event('blur', { bubbles: true }));",
+                    input, valor);
+        } else {
+            input.clear();
+            input.sendKeys(valor);
+        }
+    }
+
+    @Test
+    @DisplayName("Formulario dinámico: campos ocultos según tipo de producto (Transformado)")
+    void formularioDinamicoOcultaCamposSegunTipoTransformado() {
+        completarFormulario("alejandro123@yopmail.com", "123456789");
+        esperarEnvioDelLogin();
+
+        wait.until(urlContains("/home"));
+        abrirModuloInventario();
+        abrirAgregarNuevoArticulo();
+
+        WebElement typeSelect = wait.until(visibilityOfElementLocated(By.id("typeSelect")));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", typeSelect);
+            WebElement opcion = wait.until(visibilityOfElementLocated(By.xpath("//*[normalize-space()='Transformado']")));
+            js.executeScript("arguments[0].click();", opcion);
+        } else {
+            typeSelect.click();
+            WebElement opcion = wait.until(visibilityOfElementLocated(By.xpath("//*[normalize-space()='Transformado']")));
+            opcion.click();
+        }
+
+        WebElement costInput = wait.until(visibilityOfElementLocated(By.id("costInput")));
+        boolean disabled = !costInput.isEnabled() || costInput.getDomProperty("disabled") != null || "true".equals(costInput.getAttribute("aria-disabled"));
+        assertTrue(disabled, "El input 'costInput' debe estar deshabilitado cuando se selecciona Transformado");
+    }
+
+    @Test
+    @DisplayName("Registrar producto elaborado sin insumos bloquea guardado")
+    void registrarProductoElaboradoSinInsumosBloqueaGuardado() {
+        completarFormulario("alejandro123@yopmail.com", "123456789");
+        esperarEnvioDelLogin();
+
+        wait.until(urlContains("/home"));
+        abrirModuloInventario();
+        abrirAgregarNuevoArticulo();
+
+        WebElement typeSelect = wait.until(visibilityOfElementLocated(By.id("typeSelect")));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", typeSelect);
+            WebElement opcion = wait.until(visibilityOfElementLocated(By.xpath("//*[normalize-space()='Elaborado']")));
+            js.executeScript("arguments[0].click();", opcion);
+        } else {
+            typeSelect.click();
+            WebElement opcion = wait.until(visibilityOfElementLocated(By.xpath("//*[normalize-space()='Elaborado']")));
+            opcion.click();
+        }
+
+        WebElement registrarButton = wait.until(visibilityOfElementLocated(By.xpath("//button[normalize-space()='Registrar Artículo']")));
+        boolean disabled = registrarButton.getDomProperty("disabled") != null || !registrarButton.isEnabled() || "true".equals(registrarButton.getAttribute("aria-disabled"));
+        assertTrue(disabled, "El botón 'Registrar Artículo' debe estar deshabilitado cuando se selecciona Elaborado sin insumos");
+    }
+
+    @Test
+    @DisplayName("Calcular costo de producción debe reflejar el total de insumos")
+    void calcularCostoDeProduccionDebeReflejarElTotalDeInsumos() {
+        completarFormulario("alejandro123@yopmail.com", "123456789");
+        esperarEnvioDelLogin();
+
+        wait.until(urlContains("/home"));
+        abrirModuloInventario();
+
+        WebElement buscadorInventario = wait.until(
+            visibilityOfElementLocated(By.cssSelector("input[placeholder='Buscar artículo...']")));
+        buscadorInventario.sendKeys("Arreglo de rosas");
+
+        WebElement botonEditarPrimeraFila = wait.until(visibilityOfElementLocated(By.xpath(
+                "(//table//tbody//tr[.//*[contains(normalize-space(.), 'Arreglo de rosas')]])[1]//button[contains(normalize-space(.), 'edit')]")));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", botonEditarPrimeraFila);
+        } else {
+            botonEditarPrimeraFila.click();
+        }
+
+        wait.until(visibilityOfElementLocated(By.xpath("//h1[normalize-space()='Editar Artículo']")));
+
+        agregarInsumoYEstablecerCantidad("Limpiapipas", "12");
+        agregarInsumoYEstablecerCantidad("Palillos", "12");
+        agregarInsumoYEstablecerCantidad("Silicona", null);
+        agregarInsumoYEstablecerCantidad("Papel", "0.5");
+
+        WebElement costInput = wait.until(visibilityOfElementLocated(By.id("costInput")));
+        assertEquals("7300", costInput.getDomProperty("value"), "El costo de producción debe reflejar la suma calculada");
+        assertTrue(costInput.getDomProperty("disabled") != null || !costInput.isEnabled(),
+                "El costo de producción debe mantenerse como campo calculado");
     }
 
     private void abrirFormularioNuevoCliente() {
