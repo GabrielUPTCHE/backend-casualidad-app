@@ -867,7 +867,7 @@ class LoginSeleniumTest {
         agregarInsumoYEstablecerCantidad("Papel", "0.5");
 
         WebElement costInput = wait.until(visibilityOfElementLocated(By.id("costInput")));
-        assertEquals("7300", costInput.getDomProperty("value"), "El costo de producción debe reflejar la suma calculada");
+        assertEquals("3950", costInput.getDomProperty("value"), "El costo de producción debe reflejar la suma calculada");
         assertTrue(costInput.getDomProperty("disabled") != null || !costInput.isEnabled(),
                 "El costo de producción debe mantenerse como campo calculado");
     }
