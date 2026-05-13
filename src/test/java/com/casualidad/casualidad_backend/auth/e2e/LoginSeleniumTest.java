@@ -189,6 +189,41 @@ class LoginSeleniumTest {
         }
 
     @Test
+    @DisplayName("Registrar pedido con cliente inexistente ofrece creación rápida")
+    void registrarPedidoConClienteInexistenteOfreceCreacionRapida() {
+        completarFormulario("alejandro123@yopmail.com", "123456789");
+        esperarEnvioDelLogin();
+
+        wait.until(urlContains("/home"));
+        abrirModuloPedidos();
+        abrirRegistroDePedido();
+
+        WebElement crearClienteButton = wait.until(elementToBeClickable(
+                By.xpath("//button[contains(normalize-space(.), '¿No encuentras el cliente?') and contains(normalize-space(.), 'Crear uno nuevo')]") ));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", crearClienteButton);
+        } else {
+            crearClienteButton.click();
+        }
+
+        wait.until(urlContains("/clientes"));
+        assertTrue(driver.getCurrentUrl().contains("/clientes?from=pedidos"));
+
+        String telefonoUnico = generarTelefonoClienteUnico();
+        completarClienteConEventos("Juan Pérez", telefonoUnico);
+
+        WebElement registrarButton = wait.until(
+                elementToBeClickable(By.xpath("//button[normalize-space()='Registrar Cliente']")));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", registrarButton);
+        } else {
+            registrarButton.click();
+        }
+
+        wait.until(visibilityOfElementLocated(By.xpath("//h2[normalize-space()='Cliente Añadido con Éxito']")));
+    }
+
+    @Test
     @DisplayName("Registro de cliente sin nombre debe bloquear el envío del formulario")
     void registroDeClienteSinNombreDebeBloquearElEnvioDelFormulario() {
         completarFormulario("alejandro123@yopmail.com", "123456789");
@@ -553,6 +588,33 @@ class LoginSeleniumTest {
         assertTrue(driver.getCurrentUrl().contains("/clientes"));
     }
 
+    private void abrirModuloPedidos() {
+        WebElement pedidosLink = wait.until(
+                visibilityOfElementLocated(By.xpath("//a[contains(normalize-space(.), 'Pedidos')]")));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", pedidosLink);
+        } else {
+            pedidosLink.click();
+        }
+
+        wait.until(urlContains("/pedidos"));
+        assertTrue(driver.getCurrentUrl().contains("/pedidos"));
+    }
+
+    private void abrirRegistroDePedido() {
+        WebElement registrarPedidoButton = wait.until(elementToBeClickable(By.xpath(
+                "//button[contains(normalize-space(.), 'Registrar Pedido')] | //button[contains(normalize-space(.), 'Nuevo Pedido')]")));
+        if (driver instanceof JavascriptExecutor js) {
+            js.executeScript("arguments[0].click();", registrarPedidoButton);
+        } else {
+            registrarPedidoButton.click();
+        }
+
+        wait.until(urlContains("/pedidos?new=true"));
+        wait.until(visibilityOfElementLocated(By.xpath("//h1[normalize-space()='Crear Nuevo Pedido']")));
+        wait.until(visibilityOfElementLocated(By.xpath("//button[contains(normalize-space(.), '¿No encuentras el cliente?') and contains(normalize-space(.), 'Crear uno nuevo')]")));
+    }
+
     private void buscarClientePorNombre(String nombreCliente) {
         WebElement buscador = wait.until(
                 visibilityOfElementLocated(By.cssSelector("input[placeholder='Buscar por nombre...']")));
@@ -583,19 +645,7 @@ class LoginSeleniumTest {
         }
 
         wait.until(visibilityOfElementLocated(By.xpath("//h2[normalize-space()='Editar Cliente']")));
-    }
-
-    private void abrirEditorArticuloPorTipo(String tipo) {
-        WebElement botonEditar = wait.until(visibilityOfElementLocated(By.xpath(
-                "(//table//tr[.//*[contains(normalize-space(.), '" + tipo + "')]])[1]//button[contains(normalize-space(.), 'edit')]") ));
-        if (driver instanceof JavascriptExecutor js) {
-            js.executeScript("arguments[0].click();", botonEditar);
-        } else {
-            botonEditar.click();
-        }
-
-        wait.until(visibilityOfElementLocated(By.xpath("//h2[contains(normalize-space(.),'Editar') or contains(normalize-space(.),'Artículo')]") ));
-    }
+    }    
 
     private void abrirEliminarDeLaPrimeraFilaVisible() {
         WebElement botonEliminarPrimeraFila = wait.until(visibilityOfElementLocated(By.xpath(
@@ -674,12 +724,16 @@ class LoginSeleniumTest {
         }
 
         if (cantidad != null) {
-            WebElement cantidadInput = "Limpiapipas".equals(nombreInsumo)
-                ? wait.until(visibilityOfElementLocated(By.xpath(
-                        "(//table//tbody//tr[.//*[contains(normalize-space(.), 'Limpiapipas')]]//input[@formcontrolname='cantidadUsada'])[1]")))
-                : wait.until(visibilityOfElementLocated(By.xpath(
-                    "(//table//tbody//tr[.//*[contains(normalize-space(.), '" + nombreInsumo
-                        + "')]]//input[@formcontrolname='cantidadUsada'])[1]")));
+            WebElement cantidadInput = wait.until(driver -> {
+                java.util.List<WebElement> inputs = driver.findElements(By.cssSelector("input[formcontrolname='cantidadUsada']"));
+                for (int index = inputs.size() - 1; index >= 0; index--) {
+                    WebElement input = inputs.get(index);
+                    if (input.isDisplayed()) {
+                        return input;
+                    }
+                }
+                return null;
+            });
             escribirEnInputConEventos(cantidadInput, cantidad);
         }
     }
@@ -722,8 +776,40 @@ class LoginSeleniumTest {
         }
 
         WebElement costInput = wait.until(visibilityOfElementLocated(By.id("costInput")));
-        boolean disabled = !costInput.isEnabled() || costInput.getDomProperty("disabled") != null || "true".equals(costInput.getAttribute("aria-disabled"));
+        boolean disabled = !costInput.isEnabled() || costInput.getDomProperty("disabled") != null || "true".equals(costInput.getDomProperty("aria-disabled"));
         assertTrue(disabled, "El input 'costInput' debe estar deshabilitado cuando se selecciona Transformado");
+    }
+
+    @Test
+    @DisplayName("Búsqueda en inventario filtra en tiempo real por nombre")
+    void busquedaEnInventarioFiltraEnTiempoRealPorNombre() {
+        completarFormulario("alejandro123@yopmail.com", "123456789");
+        esperarEnvioDelLogin();
+
+        wait.until(urlContains("/home"));
+        abrirModuloInventario();
+
+        WebElement buscadorInventario = wait.until(
+            visibilityOfElementLocated(By.cssSelector("input[placeholder='Buscar artículo...']")));
+        escribirEnInputConEventos(buscadorInventario, "Cinta");
+
+        wait.until(driver -> driver.findElements(By.cssSelector("p.font-bold.text-on-surface")).stream()
+            .filter(WebElement::isDisplayed)
+            .filter(element -> {
+                String texto = element.getText();
+                return texto.contains("Cinta") || texto.contains("cinta");
+            })
+            .count() >= 3);
+
+        long articulosVisiblesConCinta = driver.findElements(By.cssSelector("p.font-bold.text-on-surface")).stream()
+            .filter(WebElement::isDisplayed)
+            .filter(element -> {
+                String texto = element.getText();
+                return texto.contains("Cinta") || texto.contains("cinta");
+            })
+            .count();
+
+        assertTrue(articulosVisiblesConCinta >= 3, "La búsqueda por 'Cinta' debe mostrar al menos 3 artículos visibles con ese nombre");
     }
 
     @Test
@@ -748,7 +834,7 @@ class LoginSeleniumTest {
         }
 
         WebElement registrarButton = wait.until(visibilityOfElementLocated(By.xpath("//button[normalize-space()='Registrar Artículo']")));
-        boolean disabled = registrarButton.getDomProperty("disabled") != null || !registrarButton.isEnabled() || "true".equals(registrarButton.getAttribute("aria-disabled"));
+        boolean disabled = registrarButton.getDomProperty("disabled") != null || !registrarButton.isEnabled() || "true".equals(registrarButton.getDomProperty("aria-disabled"));
         assertTrue(disabled, "El botón 'Registrar Artículo' debe estar deshabilitado cuando se selecciona Elaborado sin insumos");
     }
 
