@@ -99,16 +99,8 @@
       <scope>runtime</scope>
     </dependency>
 
-    <!-- Flyway: migraciones de base de datos versionadas -->
-    <dependency>
-      <groupId>org.flywaydb</groupId>
-      <artifactId>flyway-core</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.flywaydb</groupId>
-      <artifactId>flyway-database-postgresql</artifactId>
-    </dependency>
 
+    
 
     <!-- ═══════════════════════════════════════════
          CACHÉ LOCAL — Caffeine
@@ -237,6 +229,13 @@
       <groupId>io.rest-assured</groupId>
       <artifactId>rest-assured</artifactId>
       <version>${restassured.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- H2: base de datos embebida para pruebas -->
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
       <scope>test</scope>
     </dependency>
 
